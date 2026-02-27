@@ -94,12 +94,12 @@
         const scoreElement = document.getElementById('score');
         const messageElement = document.getElementById('message');
 
-        // Configuración del juego (Más lenta y agradable)
-        const gravity = 0.22;
-        const jumpStrength = -5.0;
-        const speed = 1.35;
+        // Configuración del juego (Revisada para emular flappybird.io)
+        const gravity = 0.25;
+        const jumpStrength = -4.6;
+        const speed = 2.0;
         const pipeWidth = 70;
-        const pipeGap = 160; // Espacio entre los tubos
+        const pipeGap = 130; // Espacio entre los tubos
 
         const faustoImg = new Image();
         faustoImg.src = 'fausto.png';
@@ -371,8 +371,7 @@
                 bird.update();
 
                 // Añadir tubería cada CIERTO intervalo 
-                // Aumentado a 160 para separar más los caños
-                if (frames > 0 && frames % 160 === 0) {
+                if (frames > 0 && frames % 100 === 0) {
                     createPipe();
                 }
                 drawPipes();
