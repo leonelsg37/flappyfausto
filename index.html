@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Fausto</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #050510;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            background-color: #0b0c15;
+            /* Night sky */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.05);
+            border: 4px solid #fff;
+            border-radius: 10px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 10vh;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #score {
+            font-size: 5rem;
+            font-weight: 900;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 1), 0 0 20px rgba(255, 221, 0, 0.4);
+            margin-bottom: 20px;
+            color: #FFF;
+        }
+
+        #message {
+            font-size: 1.5rem;
+            background: rgba(15, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 30px 40px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8);
+            line-height: 1.5;
+            display: none;
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 40px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            pointer-events: none;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui">
+        <div id="score">0</div>
+        <div id="message">Haz clic para jugar</div>
+    </div>
+
+    <div class="controls-hint">ESPACIO, CLICK o TOQUE para saltar</div>
+
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <div
+        style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(255, 255, 255, 0.3); font-size: 0.8rem; pointer-events: none; z-index: 5;">
+        &copy; DonGatoLabs
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const messageElement = document.getElementById('message');
+
+        // Configuración del juego (Más lenta y agradable)
+        const gravity = 0.22;
+        const jumpStrength = -5.0;
+        const speed = 1.35;
+        const pipeWidth = 70;
+        const pipeGap = 160; // Espacio entre los tubos
+
+        const faustoImg = new Image();
+        faustoImg.src = 'fausto.jpg';
+
+        // Estado del juego
+        let frames = 0;
+        let score = 0;
+        let gameOver = false;
+        let gameStarted = false;
+
+        // Personaje: Fausto
+        const bird = {
+            x: 60,
+            y: canvas.height / 2,
+            radius: 22,
+            velocity: 0,
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Rotar para efecto visual
+                let rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (this.velocity * 0.1)));
+                ctx.rotate(rotation);
+
+                if (faustoImg.complete && faustoImg.naturalWidth !== 0) {
+                    ctx.drawImage(faustoImg, -this.radius * 1.5, -this.radius * 1.5, this.radius * 3, this.radius * 3.5);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#FFDD00';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            },
+
+            update() {
+                this.velocity += gravity;
+                this.y += this.velocity;
+
+                // Colisión con el suelo (pista de carreras)
+                if (this.y + this.radius >= canvas.height - 45) {
+                    this.y = canvas.height - 45 - this.radius;
+                    gameOver = true;
+                }
+
+                // Colisión con el techo
+                if (this.y - this.radius <= 0) {
+                    this.y = this.radius;
+                    this.velocity = 0;
+                }
+            },
+
+            jump() {
+                this.velocity = jumpStrength;
+            }
+        };
+
+        // Obstáculos: Caños de escape de autos
+        const pipes = [];
+        const maxScoreHistory = [];
+
+        function drawPipes() {
+            for (let i = 0; i < pipes.length; i++) {
+                let p = pipes[i];
+
+                // Textura del caño de escape (gradiente metálico)
+                const gradStr = ctx.createLinearGradient(p.x, 0, p.x + pipeWidth, 0);
+                gradStr.addColorStop(0, '#555');
+                gradStr.addColorStop(0.3, '#CCC');
+                gradStr.addColorStop(0.7, '#AAA');
+                gradStr.addColorStop(1, '#333');
+
+                // Caño Superior
+                ctx.fillStyle = gradStr;
+                ctx.fillRect(p.x, 0, pipeWidth, p.top);
+
+                // Boca del caño superior (quemada / oscura)
+                ctx.fillStyle = '#222';
+                ctx.fillRect(p.x - 5, p.top - 20, pipeWidth + 10, 20);
+                // Interior de la boca
+                ctx.fillStyle = '#050505';
+                ctx.beginPath();
+                ctx.ellipse(p.x + pipeWidth / 2, p.top, pipeWidth / 2 + 5, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // === Humo saliendo (partículas simples) del caño superior
+                if ((frames + i * 10) % 5 === 0 && !gameOver) {
+                    p.smokeParticles.push({
+                        y: p.top + 5,
+                        x: p.x + pipeWidth / 2 + (Math.random() - 0.5) * 20,
+                        life: 1.0,
+                        isTop: true
+                    });
+                }
+
+                // Caño Inferior
+                ctx.fillStyle = gradStr;
+                const bottomY = canvas.height - p.bottom;
+                ctx.fillRect(p.x, bottomY, pipeWidth, p.bottom);
+
+                // Boca del caño inferior
+                ctx.fillStyle = '#222';
+                ctx.fillRect(p.x - 5, bottomY, pipeWidth + 10, 20);
+                // Interior de la boca
+                ctx.fillStyle = '#050505';
+                ctx.beginPath();
+                ctx.ellipse(p.x + pipeWidth / 2, bottomY, pipeWidth / 2 + 5, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // === Humo saliendo inferior
+                if ((frames + i * 10) % 5 === 0 && !gameOver) {
+                    p.smokeParticles.push({
+                        y: bottomY - 5,
+                        x: p.x + pipeWidth / 2 + (Math.random() - 0.5) * 20,
+                        life: 1.0,
+                        isTop: false
+                    });
+                }
+
+                // Dibujar humo
+                p.smokeParticles.forEach((smoke, sIndex) => {
+                    ctx.fillStyle = `rgba(150, 150, 150, ${smoke.life * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(smoke.x, smoke.y, (1 - smoke.life) * 20 + 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    smoke.x -= speed * 0.8; // el humo se queda un poco atras
+                    smoke.y += smoke.isTop ? 1 : -1;
+                    smoke.life -= 0.03;
+
+                    if (smoke.life <= 0) {
+                        p.smokeParticles.splice(sIndex, 1);
+                    }
+                });
+
+                if (!gameOver) {
+                    p.x -= speed;
+                }
+
+                // --- Colisiones ---
+                const hitboxPadding = 10; // Ajuste para que sea más justo
+                const cx = bird.x;
+                const cy = bird.y;
+                const r = bird.radius - hitboxPadding;
+
+                // Rectángulo del caño superior
+                if (cx + r > p.x && cx - r < p.x + pipeWidth && cy - r < p.top) {
+                    gameOver = true;
+                }
+                // Rectángulo del caño inferior
+                if (cx + r > p.x && cx - r < p.x + pipeWidth && cy + r > canvas.height - p.bottom) {
+                    gameOver = true;
+                }
+
+                // Puntuación
+                if (p.x + pipeWidth < bird.x && !p.passed) {
+                    p.passed = true;
+                    score++;
+                    scoreElement.innerText = score;
+                }
+            }
+
+            // Eliminar caños que salieron de la pantalla
+            if (pipes.length > 0 && pipes[0].x < -pipeWidth - 50) {
+                pipes.shift();
+            }
+        }
+
+        function createPipe() {
+            // Dejar 70px para el suelo
+            const minPipeHeight = 50;
+            const maxPos = canvas.height - 70 - pipeGap - minPipeHeight;
+            const topHeight = minPipeHeight + Math.random() * maxPos;
+
+            pipes.push({
+                x: canvas.width,
+                top: topHeight,
+                bottom: canvas.height - (topHeight + pipeGap),
+                passed: false,
+                smokeParticles: []
+            });
+        }
+
+        // --- Entorno: Pista y Cielo ---
+        // Generar estrellas fijas
+        const stars = Array(60).fill(0).map(() => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (canvas.height - 70),
+            size: Math.random() * 2 + 0.5,
+            twinkle: Math.random() * 0.05
+        }));
+
+        // Pista de carreras - guiones
+        const trackDashes = [];
+        for (let i = 0; i < 10; i++) {
+            trackDashes.push(i * 90);
+        }
+
+        function drawEnvironment() {
+            // Fondo Cielo Nocturno
+            ctx.fillStyle = '#0A0A15';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Estrellas
+            stars.forEach(s => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.sin(frames * s.twinkle) * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (!gameOver) {
+                    s.x -= speed * 0.05; // Efecto parallax sutil
+                }
+                if (s.x < 0) s.x = canvas.width;
+            });
+
+            // Neblina en el horizonte
+            const fogGrad = ctx.createLinearGradient(0, canvas.height - 200, 0, canvas.height - 70);
+            fogGrad.addColorStop(0, 'rgba(10, 10, 21, 0)');
+            fogGrad.addColorStop(1, 'rgba(30, 30, 50, 0.4)');
+            ctx.fillStyle = fogGrad;
+            ctx.fillRect(0, canvas.height - 200, canvas.width, 130);
+
+            // Suelo - Pista de carreras
+            const groundY = canvas.height - 70;
+            const groundHeight = 70;
+
+            // Asfalto
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, groundY, canvas.width, groundHeight);
+
+            // Cordones (pianitos) superiores
+            const curbGradient = ctx.createLinearGradient(0, groundY, canvas.width, groundY);
+            for (let i = 0; i < canvas.width; i += 40) {
+                let offset = (frames * speed) % 80;
+                let color = ((i - offset + 80) % 80 < 40) ? '#D00' : '#EEE';
+                ctx.fillStyle = gameOver ? (((i) % 80 < 40) ? '#D00' : '#EEE') : color;
+                ctx.fillRect(i, groundY, 41, 6);
+            }
+
+            // Cordones inferiores
+            for (let i = 0; i < canvas.width; i += 40) {
+                let offset = (frames * speed) % 80;
+                let color = ((i - offset + 80) % 80 < 40) ? '#D00' : '#EEE';
+                ctx.fillStyle = gameOver ? (((i) % 80 < 40) ? '#D00' : '#EEE') : color;
+                ctx.fillRect(i, canvas.height - 6, 41, 6);
+            }
+
+            // Líneas segmentadas blancas centrales
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            for (let i = 0; i < trackDashes.length; i++) {
+                ctx.fillRect(trackDashes[i], groundY + groundHeight / 2 - 3, 40, 6);
+                if (!gameOver) {
+                    trackDashes[i] -= speed; // Las líneas del suelo se mueven
+                }
+                if (trackDashes[i] < -60) {
+                    trackDashes[i] = canvas.width + 30;
+                }
+            }
+        }
+
+        // --- Bucle principal ---
+        function loop() {
+            drawEnvironment();
+
+            if (gameStarted && !gameOver) {
+                bird.update();
+
+                // Añadir tubería cada CIERTO intervalo 
+                // Aumentado a 160 para separar más los caños
+                if (frames > 0 && frames % 160 === 0) {
+                    createPipe();
+                }
+                drawPipes();
+                frames++;
+            } else if (!gameStarted) {
+                // Animación de reposo (flotando suavemente previo al inicio)
+                bird.y = canvas.height / 2 + Math.sin(frames * 0.05) * 12;
+                frames++;
+            } else {
+                // Instante en que se pierde
+                drawPipes();
+                bird.update(); // Que caiga al suelo muerto
+
+                messageElement.style.display = 'block';
+                // Añadir un botón o texto claro
+                messageElement.innerHTML = `
+                    <strong style="color: #FF5555; font-size: 2.5rem; text-shadow: 2px 2px 0 #000;">You lose!</strong><br>
+                    <span style="font-size: 1.2rem;">Puntuación: <b>${score}</b></span><br>
+                    
+                    <div style="display: flex; align-items: center; margin-top: 15px; text-align: left; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #222; border: 3px solid #D4AF37; position: relative; flex-shrink: 0; margin-right: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+                            <img src="fausto.jpg" style="width: 100%; height: 100%; object-fit: cover;" alt="Fausto" />
+                        </div>
+                        <div style="font-size: 0.95rem; font-style: italic; line-height: 1.3; color: #ddd;">
+                            "Aunque no lo crean creo que estoy de baja, me acabo de acordar que me tengo que levantar a las 3am"
+                        </div>
+                    </div>
+                    
+                    <br><span style="font-size:0.9rem; opacity:0.7; animation: pulse 1.5s infinite;">▼ Toca la pantalla para reintentar ▼</span>
+                `;
+            }
+
+            bird.draw();
+
+            requestAnimationFrame(loop);
+        }
+
+        // --- Controles ---
+        function handleInput() {
+            if (!gameStarted) {
+                gameStarted = true;
+                messageElement.style.display = 'none';
+                bird.jump();
+            } else if (!gameOver) {
+                bird.jump();
+            } else {
+                // Reinicio de variables
+                gameOver = false;
+                gameStarted = false;
+                score = 0;
+                frames = 0;
+                pipes.length = 0;
+                bird.y = canvas.height / 2;
+                bird.velocity = 0;
+                scoreElement.innerText = score;
+                messageElement.style.display = 'none';
+            }
+        }
+
+        // Teclado
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                handleInput();
+                e.preventDefault(); // Evitar scroll de la página
+            }
+        });
+
+        // Mouse/Pantalla Táctil
+        window.addEventListener('mousedown', handleInput);
+        window.addEventListener('touchstart', (e) => {
+            handleInput();
+            e.preventDefault(); // Evita bugs de toque doble
+        }, { passive: false });
+
+        // Iniciar
+        messageElement.style.display = 'block';
+        messageElement.innerHTML = `<strong style="font-size: 2rem;">¡Flappy Fausto!</strong><br><br><span style="font-size:1rem;">Toca para empezar</span>`;
+        loop();
+    </script>
+</body>
+
+</html>
