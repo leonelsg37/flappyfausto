@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flappy Fausto</title>
     <style>
         body {
@@ -15,6 +15,7 @@
             height: 100vh;
             background-color: #050510;
             overflow: hidden;
+            overscroll-behavior: none;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
@@ -24,6 +25,10 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.05);
             border: 4px solid #fff;
             border-radius: 10px;
+            max-width: 100vw;
+            max-height: 100vh;
+            touch-action: none;
+            object-fit: contain;
         }
 
         #ui {
@@ -69,6 +74,27 @@
             text-align: center;
             pointer-events: none;
             backdrop-filter: blur(5px);
+        }
+
+        @media (max-width: 500px) {
+            #score {
+                font-size: 3.5rem;
+            }
+
+            .controls-hint {
+                font-size: 0.85rem;
+                padding: 10px 16px;
+                bottom: 25px;
+            }
+
+            #message {
+                font-size: 1.1rem;
+                padding: 20px;
+            }
+
+            #message strong {
+                font-size: 2rem !important;
+            }
         }
     </style>
 </head>
