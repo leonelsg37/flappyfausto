@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flappy Fausto</title>
     <style>
         body {
@@ -15,7 +15,6 @@
             height: 100vh;
             background-color: #050510;
             overflow: hidden;
-            overscroll-behavior: none;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
@@ -25,10 +24,6 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.05);
             border: 4px solid #fff;
             border-radius: 10px;
-            max-width: calc(100vw - 30px);
-            max-height: calc(100vh - 40px);
-            touch-action: none;
-            object-fit: contain;
         }
 
         #ui {
@@ -75,27 +70,6 @@
             pointer-events: none;
             backdrop-filter: blur(5px);
         }
-
-        @media (max-width: 500px) {
-            #score {
-                font-size: 3.5rem;
-            }
-
-            .controls-hint {
-                font-size: 0.85rem;
-                padding: 10px 16px;
-                bottom: 25px;
-            }
-
-            #message {
-                font-size: 1.1rem;
-                padding: 20px;
-            }
-
-            #message strong {
-                font-size: 2rem !important;
-            }
-        }
     </style>
 </head>
 
@@ -121,17 +95,15 @@
         const scoreElement = document.getElementById('score');
         const messageElement = document.getElementById('message');
 
-        // Configuración del juego (Revisada para emular flappybird.io)
-        const gravity = 0.25;
-        const jumpStrength = -4.6;
-        const speed = 2.0;
+        // Configuración del juego (Más lenta y agradable)
+        const gravity = 0.35;
+        const jumpStrength = -6.5;
+        const speed = 1.8;
         const pipeWidth = 70;
-        const pipeGap = 130; // Espacio entre los tubos
+        const pipeGap = 160; // Espacio entre los tubos
 
         const faustoImg = new Image();
-        faustoImg.src = 'fausto.png';
-        const f1Img = new Image();
-        f1Img.src = 'f1.png';
+        faustoImg.src = 'fausto.jpg';
 
         // Estado del juego
         let frames = 0;
@@ -140,20 +112,16 @@
         let gameStarted = false;
         let f1Mode = false;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const themeToggle = document.getElementById('themeToggle');
-            if (themeToggle) {
-                themeToggle.addEventListener('mousedown', (e) => {
-                    f1Mode = !f1Mode;
-                    themeToggle.innerText = f1Mode ? 'Modo Normal' : 'Modo F1';
-                    e.stopPropagation();
-                });
-                themeToggle.addEventListener('touchstart', (e) => {
-                    f1Mode = !f1Mode;
-                    themeToggle.innerText = f1Mode ? 'Modo Normal' : 'Modo F1';
-                    e.stopPropagation();
-                }, { passive: false });
-            }
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('mousedown', (e) => {
+            f1Mode = !f1Mode;
+            themeToggle.innerText = f1Mode ? 'Modo Normal' : 'Modo F1';
+            e.stopPropagation();
+        });
+        themeToggle.addEventListener('touchstart', (e) => {
+            f1Mode = !f1Mode;
+            themeToggle.innerText = f1Mode ? 'Modo Normal' : 'Modo F1';
+            e.stopPropagation();
         });
 
         // Personaje: Fausto
@@ -172,25 +140,21 @@
                 ctx.rotate(rotation);
 
                 if (f1Mode) {
-                    if (f1Img.complete && f1Img.naturalWidth !== 0) {
-                        ctx.drawImage(f1Img, -this.radius * 2, -this.radius * 1.5, this.radius * 4, this.radius * 3);
-                    } else {
-                        // Coche de F1 visto desde arriba alternativo por si no carga
-                        ctx.fillStyle = '#E10600'; // Rojo Ferrari
-                        ctx.fillRect(-this.radius + 5, -this.radius / 3, this.radius * 2 - 10, this.radius * 0.66);
-                        ctx.fillStyle = '#111'; // Ruedas (negras)
-                        ctx.fillRect(-this.radius + 5, -this.radius * 0.7, 10, 6);
-                        ctx.fillRect(-this.radius + 5, this.radius * 0.7 - 6, 10, 6);
-                        ctx.fillRect(this.radius - 12, -this.radius * 0.7, 10, 6);
-                        ctx.fillRect(this.radius - 12, this.radius * 0.7 - 6, 10, 6);
-                        ctx.fillStyle = '#FFF'; // Alerones
-                        ctx.fillRect(-this.radius, -this.radius * 0.8, 5, this.radius * 1.6);
-                        ctx.fillRect(this.radius, -this.radius * 0.8, 4, this.radius * 1.6);
-                        ctx.fillStyle = '#000'; // Habitáculo / piloto
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
+                    // Coche de F1 visto desde arriba
+                    ctx.fillStyle = '#E10600'; // Rojo Ferrari
+                    ctx.fillRect(-this.radius + 5, -this.radius / 3, this.radius * 2 - 10, this.radius * 0.66);
+                    ctx.fillStyle = '#111'; // Ruedas (negras)
+                    ctx.fillRect(-this.radius + 5, -this.radius * 0.7, 10, 6);
+                    ctx.fillRect(-this.radius + 5, this.radius * 0.7 - 6, 10, 6);
+                    ctx.fillRect(this.radius - 12, -this.radius * 0.7, 10, 6);
+                    ctx.fillRect(this.radius - 12, this.radius * 0.7 - 6, 10, 6);
+                    ctx.fillStyle = '#FFF'; // Alerones
+                    ctx.fillRect(-this.radius, -this.radius * 0.8, 5, this.radius * 1.6);
+                    ctx.fillRect(this.radius, -this.radius * 0.8, 4, this.radius * 1.6);
+                    ctx.fillStyle = '#000'; // Habitáculo / piloto
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                    ctx.fill();
                 } else {
                     if (faustoImg.complete && faustoImg.naturalWidth !== 0) {
                         ctx.drawImage(faustoImg, -this.radius * 1.5, -this.radius * 1.5, this.radius * 3, this.radius * 3.5);
@@ -210,7 +174,7 @@
                 this.y += this.velocity;
 
                 // Colisión con el suelo (pista de carreras)
-                let groundY = f1Mode ? canvas.height - 15 : canvas.height - 45;
+                let groundY = f1Mode ? canvas.height - 15 : canvas.height - 70;
                 if (this.y + this.radius >= groundY) {
                     this.y = groundY - this.radius;
                     gameOver = true;
@@ -260,10 +224,6 @@
 
                     for (let cy = 20; cy < p.top; cy += coneSpacing) drawCone(p.x + pipeWidth / 2, cy);
                     for (let cy = canvas.height - 20; cy > canvas.height - p.bottom; cy -= coneSpacing) drawCone(p.x + pipeWidth / 2, cy);
-                    
-                    if (!gameOver) {
-                        p.x -= speed;
-                    }
                 } else {
                 // Textura del caño de escape (gradiente metálico)
                 const gradStr = ctx.createLinearGradient(p.x, 0, p.x + pipeWidth, 0);
@@ -338,10 +298,11 @@
                 if (!gameOver) {
                     p.x -= speed;
                 }
-                } // End of else block for normal pipes
+
+                }
 
                 // --- Colisiones ---
-                const hitboxPadding = f1Mode ? 12 : 10; // Ajuste para que sea más justo
+                const hitboxPadding = f1Mode ? 10 : 4; // Ajuste para que sea más justo
                 const cx = bird.x;
                 const cy = bird.y;
                 const r = bird.radius - hitboxPadding;
@@ -484,7 +445,9 @@
                     trackDashes[i] = canvas.width + 30;
                 }
             }
-            } // End of else block for normal environment
+        }
+
+            }
         }
 
         // --- Bucle principal ---
@@ -495,7 +458,8 @@
                 bird.update();
 
                 // Añadir tubería cada CIERTO intervalo 
-                if (frames > 0 && frames % 100 === 0) {
+                // Aumentado a 160 para separar más los caños
+                if (frames > 0 && frames % 160 === 0) {
                     createPipe();
                 }
                 drawPipes();
@@ -517,10 +481,10 @@
                     
                     <div style="display: flex; align-items: center; margin-top: 15px; text-align: left; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
                         <div style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #222; border: 3px solid #D4AF37; position: relative; flex-shrink: 0; margin-right: 15px; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
-                            <img src="${f1Mode ? 'f1.png' : 'fausto.png'}" style="width: 100%; height: 100%; object-fit: cover;" alt="Fausto" />
+                            <img src="fausto.jpg" style="width: 100%; height: 100%; object-fit: cover;" alt="Fausto" />
                         </div>
                         <div style="font-size: 0.95rem; font-style: italic; line-height: 1.3; color: #ddd;">
-                            ${f1Mode ? '"Che, boludo, ¿vos viste la que me mandé? Se me chispoteó el auto..."' : '"Aunque no lo crean creo que estoy de baja, me acabo de acordar que me tengo que levantar a las 3am"'}
+                            "Aunque no lo crean creo que estoy de baja, me acabo de acordar que me tengo que levantar a las 3am"
                         </div>
                     </div>
                     
